@@ -1,0 +1,2 @@
+- Enable the use of numpad Enter key
+- Shortcut/Button to expand rows vertically

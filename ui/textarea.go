@@ -12,6 +12,8 @@ import (
 	"github.com/jmigpin/editor/util/uiutil/widget"
 )
 
+var InlineComplete = true
+
 type TextArea struct {
 	*widget.TextEditX
 
@@ -125,6 +127,9 @@ func (ta *TextArea) handleInputEvent2(ev0 interface{}, p image.Point) event.Hand
 		case m.Is(event.ModNone):
 			switch ev.KeySym {
 			case event.KSymTab:
+				if !InlineComplete {
+					break
+				}
 				return ta.inlineCompleteEv()
 			}
 		}

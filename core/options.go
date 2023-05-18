@@ -23,6 +23,7 @@ type Options struct {
 	ScrollBarWidth int
 	ScrollBarLeft  bool
 	Shadows        bool
+	InlineComplete bool
 
 	SessionName string
 	Filenames   []string

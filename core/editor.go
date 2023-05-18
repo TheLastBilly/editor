@@ -476,6 +476,7 @@ func (ed *Editor) setupTheme(opt *Options) {
 	ui.ScrollBarLeft = opt.ScrollBarLeft
 	ui.ScrollBarWidth = opt.ScrollBarWidth
 	ui.ShadowsOn = opt.Shadows
+	ui.InlineComplete = opt.InlineComplete
 
 	// color theme
 	if _, ok := ui.ColorThemeCycler.GetIndex(opt.ColorTheme); !ok {
