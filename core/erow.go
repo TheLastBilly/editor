@@ -179,13 +179,7 @@ func newLoadedFileERow(info *ERowInfo, rowPos *ui.RowPos) (*ERow, error) {
 
 //----------
 
-func (erow *ERow) Reload() {
-	if err := erow.reload(); err != nil {
-		erow.Ed.Error(err)
-	}
-}
-
-func (erow *ERow) reload() error {
+func (erow *ERow) Reload() error {
 	switch {
 	case erow.Info.IsSpecial() && erow.Info.Name() == "+Sessions":
 		ListSessions(erow.Ed)
@@ -195,6 +189,8 @@ func (erow *ERow) reload() error {
 		return nil
 	case erow.Info.IsFileButNotDir():
 		return erow.Info.ReloadFile()
+	case erow.Info.FileInfoErr() != nil:
+		return erow.Info.FileInfoErr()
 	default:
 		return errors.New("unexpected type to reload")
 	}
@@ -270,11 +266,13 @@ func (erow *ERow) initHandlers() {
 					erow.Ed.Error(err)
 				}
 			case mods.Is(event.ModCtrl) && evt.KeySym == event.KSymF:
-				FindShortcut(erow)
+				AddFindShortcut(erow)
 			case mods.Is(event.ModCtrl) && evt.KeySym == event.KSymH:
-				ReplaceShortcut(erow)
+				AddReplaceShortcut(erow)
 			case mods.Is(event.ModCtrl) && evt.KeySym == event.KSymN:
-				NewFileShortcut(erow)
+				AddNewFileShortcut(erow)
+			case mods.Is(event.ModCtrl) && evt.KeySym == event.KSymR:
+				AddReloadShortcut(erow)
 			case mods.Is(event.ModCtrl) && evt.KeySym == event.KSymW:
 				row.Close()
 			case evt.KeySym == event.KSymEscape:
@@ -612,6 +610,8 @@ func (erow *ERow) setupSyntaxHighlightAndCommentShortcuts() {
 		setComments("%", [2]string{"/*", "*/"})
 	case ".html", ".xml", ".svg":
 		setComments([2]string{"<!--", "-->"})
+	case ".css":
+		setComments([2]string{"/*", "*/"})
 	case ".s", ".asm": // assembly
 		setComments("//")
 	case ".json":

@@ -87,11 +87,10 @@ func SaveAllFiles(args *core.InternalCmdArgs) error {
 //----------
 
 func Reload(args *core.InternalCmdArgs) error {
-	args.ERow.Reload()
-	return nil
+	return args.ERow.Reload()
 }
 func ReloadAllFiles(args *core.InternalCmdArgs) error {
-	var me iout.MultiError
+	me := &iout.MultiError{}
 	for _, info := range args.Ed.ERowInfos() {
 		if info.IsFileButNotDir() {
 			me.Add(info.ReloadFile())
@@ -101,15 +100,18 @@ func ReloadAllFiles(args *core.InternalCmdArgs) error {
 }
 func ReloadAll(args *core.InternalCmdArgs) error {
 	// reload all dirs erows
+	me := &iout.MultiError{}
 	for _, info := range args.Ed.ERowInfos() {
 		if info.IsDir() {
 			for _, erow := range info.ERows {
-				erow.Reload() // TODO: handle error here
+				me.Add(erow.Reload())
 			}
 		}
 	}
 
-	return ReloadAllFiles(args)
+	me.Add(ReloadAllFiles(args))
+
+	return me.Result()
 }
 
 //----------
@@ -146,6 +148,16 @@ func OpenTerminal(args *core.InternalCmdArgs) error {
 	}
 
 	return osutil.OpenTerminal(erow.Info.Dir())
+}
+
+func OpenExternal(args *core.InternalCmdArgs) error {
+	erow := args.ERow
+
+	if erow.Info.IsSpecial() {
+		return fmt.Errorf("can't run on special row")
+	}
+
+	return osutil.OpenExternal(erow.Info.Name())
 }
 
 //----------

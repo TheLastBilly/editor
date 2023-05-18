@@ -77,12 +77,13 @@ Feel free to file an issue if you know of a better solution that doesn't require
 
 ## Usage
 
+<!-- __usageSectionStart__ -->
 ```
-Usage of ./editor:
+Usage of editor:
   -colortheme string
-    	available: light, dark, acme (default "light")
+    	available: light, acme, lightInverted, acmeInverted (default "light")
   -commentscolor int
-    	Colorize comments. Can be set to zero to use a percentage of the font color. Ex: 0=auto, 1=Black, 0xff0000=red.
+    	Colorize comments. Can be set to 0x1 to not colorize. Ex: 0xff0000=red.
   -cpuprofile string
     	profile cpu filename
   -dpi float
@@ -113,7 +114,7 @@ Usage of ./editor:
     	Format: language,fileExtensions,cmd
     	Examples:
     		go,.go,goimports
-    		cpp,".c .h .cpp .hpp",clang-format
+    		cpp,".cpp .hpp","\"clang-format --style={'opt1':1,'opt2':2}\""
     		python,.py,python_formatter
   -scrollbarleft
     	set scrollbars on the left side (default true)
@@ -126,7 +127,7 @@ Usage of ./editor:
   -sn string
     	open existing session
   -stringscolor int
-    	Colorize strings. Can be set to zero to not colorize. Ex: 0xff0000=red.
+    	Colorize strings. Can be set to 0x1 to not colorize. Ex: 0xff0000=red.
   -tabwidth int
     	 (default 8)
   -usemultikey
@@ -136,8 +137,10 @@ Usage of ./editor:
   -wraplinerune int
     	code for wrap line rune, can be set to zero (default 8592)
 ```
+ <!-- __usageSectionEnd__ -->
 
 The editor has no configuration file. Use it within a script with your preferences (example `editor.sh`):
+
 ```
 #!/bin/sh
 exec ~/path/editor \
@@ -228,7 +231,9 @@ These commands run on a row toolbar, or on the top toolbar with the active-row.
 - `CopyFilePosition`: output the cursor file position in the format "file:line:col". Useful to get a clickable text with the file position.
 - `RuneCodes`: output rune codes of the current row text selection.
 - `FontRunes`: output the current font runes.
-- `OpenFilemanager`: open the row directory with the preferred external application (usually a filemanager).
+- `OpenExternal`: open the row with the preferred external application (ex: useful to open an image, pdf, etc).
+- `OpenFilemanager`: open the row directory with the external filemanager.
+- `OpenTerminal`: open the row directory with the external terminal.
 - `LsprotoCloseAll`: closes all running lsp client/server connections. Next call will auto start again. Useful to stop a misbehaving server that is not responding.
 - `LsprotoRename <new-name>`: Renames the identifiers under the text cursor using the loaded lsp instance. Uses the row/active-row filename, and the cursor index as the "offset" argument.
 - `LsprotoCallers`: lists callers of the identifier under the text cursor using the loaded lsp instance. Uses the row/active-row filename, and the cursor index as the "offset" argument. Also known as: call hierarchy incoming calls.
@@ -300,6 +305,7 @@ Usage of GoDebug run:
 - Annotate files
 	- By default, the main file will be annotated. Other files/directories can be added with the `-dirs` and `-files` command line options, or by inserting one of the following comments in the code (notice the lack of space after "//"):
 		```
+		//godebug:annotateoff		# disable annotating
 		//godebug:annotateblock
 		//godebug:annotatefile
 		//godebug:annotatepackage
@@ -310,19 +316,19 @@ Usage of GoDebug run:
 		//godebug:annotatefile:<file> 	# absolute or relative to the current
 		//godebug:annotatepackage:<pkg-path>
 		//godebug:annotatemodule:<pkg-path> 	# any pkg path inside will annotate all
-		```
-		The annotator will detect these comments and annotate accordingly.
-
-		A pkg path can be given to annotatepackage, but beware that pkgs located in $GOROOT are not annotated. Example:
-		```
+		
+		# example:
 		//godebug:annotatepackage:golang.org/x/tools/godoc/util
 		```
+		
+		The annotator will detect these comments and annotate accordingly. 
+		
+		Packages located in $GOROOT are not annotated. 
+		
 		Higher level `//godebug:*` comments will override lower ones.
-		To disable annotating for the current code block, insert:
-		```
-		//godebug:annotateoff
-		```
-		This is helpful to bypass loops that would become too slow with debug messages being sent. Example:
+		
+		Example on how to bypass loops that would become too slow with debug messages being sent:
+		
 		```
 		//godebug:annotateoff	// don't annotate arg "v1"
 		func fn(v1 int){
@@ -340,7 +346,9 @@ Usage of GoDebug run:
 			println(a) // annotated, not part of the disabled block
 		}
 		```
+		
 		Also, to improve on the `String()` limitation:
+		
 		```
 		type myint int
 		func (v myint) String() string {
@@ -468,6 +476,7 @@ Plugins located at: `./plugins`.
 - `ctrl`+`f`: warp pointer to "Find" cmd in row toolbar
 - `ctrl`+`h`: warp pointer to "Replace" cmd in row toolbar
 - `ctrl`+`n`: warp pointer to "NewFile" cmd in row toolbar
+- `ctrl`+`r`: warp pointer to "Reload" cmd in row toolbar
 - `buttonLeft` on square-button: close row
 - on top border (or row square):
 	- `buttonLeft`: drag to move/resize row

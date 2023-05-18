@@ -9,7 +9,7 @@ import (
 	"github.com/jmigpin/editor/ui"
 	"github.com/jmigpin/editor/util/drawutil/drawer4"
 	"github.com/jmigpin/editor/util/iout/iorw"
-	"github.com/jmigpin/editor/util/parseutil"
+	"github.com/jmigpin/editor/util/mathutil"
 )
 
 type InlineComplete struct {
@@ -111,7 +111,8 @@ func (ic *InlineComplete) insertComplete(comps []string, ta *ui.TextArea) (compl
 	if err != nil {
 		return completed, comps2, err
 	}
-	if newIndex != 0 {
+	//if newIndex != 0 {
+	if completed {
 		ta.SetCursorIndex(newIndex)
 		// update index for CancelOnCursorChange
 		ic.mu.Lock()
@@ -204,90 +205,107 @@ func insertComplete(comps []string, rw iorw.ReadWriterAt, index int) (newIndex i
 		return 0, false, comps, nil
 	}
 
-	expand, canComplete, comps2 := filterPrefixedAndExpand(comps, prefix)
-	comps = comps2
-	if len(comps) == 0 {
-		return 0, false, comps, nil
+	expandStr, comps2 := expandAndFilter(prefix, comps)
+	if len(comps2) == 0 {
+		return 0, false, comps2, nil
 	}
+	canComplete := expandStr != ""
 
 	if canComplete {
-		// original string
-		origStr := prefix
-
-		// string to insert
-		n := len(origStr)
-		insStr := comps[0][:n+expand]
-
 		// try to expand the index to the existing text
+		n := len(prefix)
+		expand := len(expandStr) - len(prefix)
 		for i := 0; i < expand; i++ {
 			b, err := rw.ReadFastAt(index+i, 1)
 			if err != nil {
 				break
 			}
-			if b[0] != insStr[n] {
+			if b[0] != expandStr[n] {
 				break
 			}
 			n++
 		}
 
 		// insert completion
-		if insStr != origStr {
-			err := rw.OverwriteAt(start, n, []byte(insStr))
+		if expandStr != prefix {
+			err := rw.OverwriteAt(start, n, []byte(expandStr))
 			if err != nil {
 				return 0, false, nil, err
 			}
-			newIndex = start + len(insStr)
-			return newIndex, true, comps, nil
+			newIndex = start + len(expandStr)
+			return newIndex, true, comps2, nil
 		}
 	}
 
-	return 0, false, comps, nil
+	return 0, false, comps2, nil
 }
 
 //----------
 
-func filterPrefixedAndExpand(comps []string, prefix string) (expand int, canComplete bool, _ []string) {
-	// find all matches from start to index
+func expandAndFilter(prefix string, comps []string) (expand string, comps5 []string) {
+	// find prefix matches (case insensitive)
 	strLow := strings.ToLower(prefix)
-	res := []string{}
+	comps2 := []string{}
 	for _, v := range comps {
 		vLow := strings.ToLower(v)
 		if strings.HasPrefix(vLow, strLow) {
-			res = append(res, v)
+			comps2 = append(comps2, v)
 		}
 	}
-	// find possible expansions if all matches have common extra runes
-	if len(res) == 1 {
-		// special case to allow overwriting string casing "aaa"->"aAa"
-		canComplete = true
-		expand = len(res[0]) - len(prefix)
-	} else if len(res) >= 1 {
-	loop1:
-		for j := 0; j < len(res[0]); j++ { // test up to first result length
-			// break on any result that fails to expand
-			for i := 1; i < len(res); i++ {
-				if !(j < len(res[i]) && res[i][j] == res[0][j]) {
-					break loop1
-				}
-			}
-			if j >= len(prefix) {
-				expand++
-				canComplete = true
-			}
-		}
+	if len(comps2) == 0 {
+		return "", nil
 	}
 
-	return expand, canComplete, res
+	//// NOTE: this loses the provided order, but better results?
+	//sort.Strings(comps2)
+
+	// longest prefix
+	lcp := longestCommonPrefix(comps2)
+
+	// choose next in line: keep first not eq to prefix after the one eq to prefix
+	if len(lcp) == len(prefix) {
+		k := 0 // default
+		n := len(prefix)
+		first := true
+		for i, s := range comps2 {
+			if s[:n] == prefix {
+				if first {
+					first = false
+				}
+			} else if !first {
+				k = i
+				break
+			}
+		}
+		lcp = comps2[k][:n]
+	}
+
+	return lcp, comps2
+}
+func longestCommonPrefix(strs []string) string {
+	if len(strs) == 0 {
+		return ""
+	}
+	prefix := strings.ToLower(strs[0])
+	for i := 1; i < len(strs); i++ {
+		str := strings.ToLower(strs[i])
+		n := mathutil.Min(len(prefix), len(str))
+		for str[:n] != prefix[:n] {
+			n--
+		}
+		prefix = prefix[:n]
+	}
+	//return prefix
+	return strs[0][:len(prefix)] // use original string
 }
 
 //----------
 
 func readLastUntilStart(rd iorw.ReaderAt, index int) (int, string, bool) {
-	sc := parseutil.NewScannerR(rd, index)
+	sc := iorw.NewScanner(rd)
 	sc.Reverse = true
-	pos0 := sc.KeepPos()
 	max := 1000
-	err := sc.M.RuneFnLoop(func(ru rune) bool {
+	if v, p2, err := sc.M.StringValue(index, sc.W.RuneFnLoop(func(ru rune) bool {
 		max--
 		if max <= 0 {
 			return false
@@ -296,9 +314,13 @@ func readLastUntilStart(rd iorw.ReaderAt, index int) (int, string, bool) {
 			unicode.IsLetter(ru) ||
 			unicode.IsNumber(ru) ||
 			unicode.IsDigit(ru)
-	})
-	if err != nil || pos0.IsEmpty() {
+	})); err != nil {
 		return 0, "", false
+	} else {
+		s := v.(string)
+		if s == "" {
+			return 0, "", false
+		}
+		return p2, s, true
 	}
-	return sc.Pos(), string(pos0.Bytes()), true
 }
