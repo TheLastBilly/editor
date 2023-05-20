@@ -1,0 +1,3 @@
+- Add shortcut for triggering commands on command bar
+- Add shortcut for moving cursor to command bar
+- Add support for numpad enter
